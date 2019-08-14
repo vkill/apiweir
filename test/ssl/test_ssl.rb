@@ -1,8 +1,10 @@
 require_relative '../helper'
 
 class SSLTest < Test::Unit::TestCase
+  attr_accessor :port_web1
+
   def setup
-    # TODO
+    self.port_web1 = bg_run_http_server_web1
   end
 
   def teardown
@@ -10,6 +12,5 @@ class SSLTest < Test::Unit::TestCase
   end
 
   def test_match
-    # TODO
   end
 end
