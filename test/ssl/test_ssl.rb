@@ -5,6 +5,7 @@ class SSLTest < Test::Unit::TestCase
 
   def setup
     self.port_web1 = bg_run_http_server_web1
+    bg_run_apiweir
   end
 
   def teardown
