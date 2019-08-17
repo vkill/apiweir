@@ -23,12 +23,12 @@ class Test::Unit::TestCase
   end
 
   def bg_run_apiweir(port)
-    pid = fork do
-      prefix_path = Dir.mktmpdir('apiweir-')
-      FileUtils.mkdir_p(File.join(prefix_path, 'conf'))
-      FileUtils.mkdir_p(File.join(prefix_path, 'logs'))
-      FileUtils.cp(File.expand_path('../../conf/nginx.conf', __FILE__), File.join(prefix_path, 'conf'))
+    prefix_path = Dir.mktmpdir('apiweir-')
+    FileUtils.mkdir_p(File.join(prefix_path, 'conf'))
+    FileUtils.mkdir_p(File.join(prefix_path, 'logs'))
+    FileUtils.cp(File.expand_path('../../conf/nginx.conf', __FILE__), File.join(prefix_path, 'conf'))
 
+    pid = fork do
       cmd = "openresty -p #{prefix_path} -c #{File.join(prefix_path, 'conf', 'nginx.conf')} -g 'daemon off;'"
 
       Open3.pipeline_start(cmd) do |ts|
@@ -74,6 +74,15 @@ class Test::Unit::TestCase
 
     if $?.exitstatus != 0
       raise 'run apiweir failed'
+    end
+
+    return prefix_path
+  end
+
+  def kill_bg_run_apiweir(prefix_path)
+    pid = open(File.join(prefix_path, 'logs', 'nginx.pid')).read.to_i
+    if pid > 0
+      Process.kill('QUIT', pid)
     end
   end
 end
