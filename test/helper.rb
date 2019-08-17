@@ -5,6 +5,8 @@ require 'etc'
 require 'tmpdir'
 require 'fileutils'
 require 'open3'
+require 'socket'
+require 'timeout'
 
 Thread.abort_on_exception = true
 
@@ -20,37 +22,58 @@ class Test::Unit::TestCase
     return http_server.port
   end
 
-  def bg_run_apiweir
-    Dir.mktmpdir('apiweir-') do |prefix_path|
-      FileUtils.mkdir_p(File.join(prefix_path, 'config'))
+  def bg_run_apiweir(port)
+    pid = fork do
+      prefix_path = Dir.mktmpdir('apiweir-')
+      FileUtils.mkdir_p(File.join(prefix_path, 'conf'))
       FileUtils.mkdir_p(File.join(prefix_path, 'logs'))
-      FileUtils.cp(File.expand_path('../../conf/nginx.conf', __FILE__), File.join(prefix_path, 'config'))
+      FileUtils.cp(File.expand_path('../../conf/nginx.conf', __FILE__), File.join(prefix_path, 'conf'))
 
-      thr = Thread.new {
-        cmd = "openresty -p #{prefix_path} -g 'daemon off;'"
-        Open3.popen3(cmd) do |stdin, stdout, stderr, wait_thr|
-          pid = wait_thr.pid
-          p pid
+      cmd = "openresty -p #{prefix_path} -c #{File.join(prefix_path, 'conf', 'nginx.conf')} -g 'daemon off;'"
 
-          stdin.close
+      Open3.pipeline_start(cmd) do |ts|
+        t = ts[0]
 
-          p stdout.read
-          stdout.close
-          p stderr.read
-          stderr.close
-
-          Process.kill("SIGINT", wait_thr.pid)
-
-          exit_status = wait_thr.value
-          p exit_status
-
-          unless exit_status.success?
-            raise "run apiweir failed"
+        running = false
+        n = 0
+        n_max = 3
+        while n < n_max do
+          begin
+            Timeout::timeout(2) do
+              begin
+                TCPSocket.new('127.0.0.1', port).close
+                running = true
+                n = n_max
+              rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH => ex
+                sleep 1
+                puts ex
+                n += 1
+              end
+            end
+          rescue Timeout::Error => ex
+            puts ex
+            n += 1
           end
         end
-      }
-      thr.join(3)
+
+        if running
+          Process.daemon(t.pid)
+        else
+          Process.kill('HUP', Process.ppid)
+          Process.kill('QUIT', t.pid)
+        end
+
+      end
+    end
+
+    Signal.trap('HUP') {
+      raise 'run apiweir failed'
+    }
+
+    Process.wait(pid)
+
+    if $?.exitstatus != 0
+      raise 'run apiweir failed'
     end
   end
-
 end
