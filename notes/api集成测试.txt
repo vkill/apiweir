@@ -1,0 +1,56 @@
+根据cpu核数执行 x2 次，保证每个 worker 执行两次
+
+require 'etc' 内置
+p Etc.nprocessors
+
+或者显示的替换 worker 数为 2
+
+http 有 ca_file 显示的声明位置
+
+integration-tests
+
+
+require "test/unit" 内置
+
+参考这个写测试，rake test
+https://github.com/ruby/logger
+
+也可以参考这个
+https://github.com/ruby/rake/tree/master/test/support
+
+运行OR https://www.rubydoc.info/stdlib/core/Process.spawn
+
+
+运行一个自定义的 http server  webrick 内置
+https://docs.ruby-lang.org/en/2.1.0/WEBrick.html#module-WEBrick-label-Starting+an+HTTP+server
+参考 https://github.com/googleapis/google-api-ruby-client/blob/master/lib/google/api_client/auth/installed_app.rb
+
+```
+#!/usr/bin/env ruby
+
+require 'webrick'
+
+server = WEBrick::HTTPServer.new :Port => 8000
+
+server.mount_proc '/' do |req, res|
+  p req.request_uri.path
+  res.body = 'this is /'
+end
+
+server.mount_proc '/v1' do |req, res|
+  p req.request_uri.path
+  res.body = 'this is /v1'
+end
+
+server.mount_proc '/v1/a' do |req, res|
+  p req.request_uri.path
+  res.body = 'this is /v1/a'
+end
+
+trap 'INT' do server.shutdown end
+
+server.start
+```
+
+
+
